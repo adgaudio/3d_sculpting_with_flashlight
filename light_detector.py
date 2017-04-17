@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from pymouse import PyMouse
 from scipy.spatial.distance import euclidean
-
+import webbrowser
 
 def centroid(contour):
     M = cv2.moments(contour)
@@ -87,9 +87,12 @@ def plot_position(img, x, y):
     cv2.circle(img, (int(x), int(y)), 5, (255, 0, 255), thickness=10)
 
 
-def update_mouse_position(mouse, x, y):
+def update_mouse_position(mouse, x, y, drag=False):
     w, h = mouse.screen_size()
-    mouse.move(int(x * w), int(y * h))
+    if drag:
+        mouse.drag(int(x * w), int(y * h))
+    else:
+        mouse.move(int(x * w), int(y * h))
 
 
 def capture_background(frames):
@@ -123,6 +126,7 @@ def main():
 
     # initialize a mouse device
     mouse = PyMouse()
+    drag_mouse = False
 
     background = None
 
@@ -131,12 +135,18 @@ def main():
             (acquire_frame(cap)) for _ in iter(int, 1))
         print('staring detector')
         while(cap.isOpened()):
-            if cv2.waitKey(30) & 0xff == 27:
+            key = cv2.waitKey(30) & 0xff
+            if key == 27:
                 print("ending")
                 break
+            elif key == ord('d'):
+                drag_mouse = ~drag_mouse
+            elif key == ord('w'):
+                webbrowser.open('https://stephaneginier.com/sculptgl/')
 
             # acquire a frame from the video device
             img = acquire_frame(cap)
+            cv2.imshow('frame', img)
 
             img = binarize(img)
             img = remove_noise_morphology(img)
@@ -145,7 +155,6 @@ def main():
             xy = select_nearest_largest_contour_centroid(
                 img, mouse.position())
 
-            #  cv2.imshow('frame', frame)
             #  cv2.imshow('fg', fg)
             #  cv2.imshow('binarized', binarized)
             l = np.zeros(img.shape + (3, ))
@@ -158,7 +167,7 @@ def main():
 
             if xy is None:
                 continue
-            update_mouse_position(mouse, *xy)
+            update_mouse_position(mouse, *xy, drag=drag_mouse)
     finally:
         cap.release()
         #  cv2.destroyAllWindows()
